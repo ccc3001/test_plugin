@@ -30,6 +30,7 @@ class NewParser(MatchingParser):
         logger.info('NewParser.parse', parameter=configuration.parameter)
         with h5py.File(filename, "r") as f:
             if "demo_instrument_detectorZ" in list(f["CAMELS_entry"]["data"].keys())
+                logger.info("finding detector")
                 archive.data.detectorZ =f["CAMELS_entry"]["data"]["demo_instrument_detectorZ"][()]
             archive.data.certain_value= "test"
         logger.info("h5 was read propperly")
