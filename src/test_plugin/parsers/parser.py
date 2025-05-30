@@ -28,5 +28,8 @@ class NewParser(MatchingParser):
         child_archives: dict[str, 'EntryArchive'] = None,
     ) -> None:
         logger.info('NewParser.parse', parameter=configuration.parameter)
-
-        archive.workflow2 = Workflow(name='test')
+        with h5py.File(filename, "r") as f:
+            if "demo_instrument_detectorZ" in list(f["CAMELS_entry"]["data"].keys())
+                archive.data.detectorZ =f["CAMELS_entry"]["data"]["demo_instrument_detectorZ"][()]
+            archive.data.certain_value= "test"
+        logger.info("h5 was read propperly")
