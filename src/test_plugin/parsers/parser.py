@@ -1,3 +1,4 @@
+import h5py
 from typing import (
     TYPE_CHECKING,
 )
@@ -28,7 +29,7 @@ class NewParser(MatchingParser):
         child_archives: dict[str, 'EntryArchive'] = None,
     ) -> None:
         logger.info('NewParser.parse', parameter=configuration.parameter)
-        with h5py.File(filename, "r") as f:
+        with h5py.File(mainfile, "r") as f:
             if "demo_instrument_detectorZ" in list(f["CAMELS_entry"]["data"].keys())
                 logger.info("finding detector")
                 archive.data.detectorZ =f["CAMELS_entry"]["data"]["demo_instrument_detectorZ"][()]
