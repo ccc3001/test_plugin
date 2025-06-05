@@ -14,11 +14,12 @@ if TYPE_CHECKING:
 from nomad.config import config
 from nomad.datamodel.metainfo.workflow import Workflow
 from nomad.parsing.parser import MatchingParser
+from test_plugin.schema_packages.schema_package import NewSchemaPackage
 
 configuration = config.get_plugin_entry_point(
     'test_plugin.parsers:parser_entry_point'
 )
-
+archive.data = NewSchemaPackage()
 
 class NewParser(MatchingParser):
     def parse(
