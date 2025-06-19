@@ -132,7 +132,7 @@ class NewSchemaPackage(ArchiveSection):
             ax.set_ylabel("Y-axis")
             encoded = fig_to_base64(fig)
             image_html = '<img src="data:image/png;base64, {}">'.format(encoded.decode('utf-8'))
-            final_html = self.create_pdf(self,image_html)
+            final_html = self.create_pdf(image_html)
             with archive.m_context.raw_file(output,'w') as file:
                 file.write(final_html)
             self.results_html=str(final_html)
