@@ -125,9 +125,6 @@ class NewSchemaPackage(ArchiveSection):
         super(NewSchemaPackage,self).normalize(archive,logger)
         output=f"test.html"
         if self.detectorZ is not None:
-            html_description=f"""
-            <p>MaxTemp:{maximum}<br> MinTemp:{minimum}<br> AvgTemp:{average}</p>
-             """
             fig,ax = plt.subplots()
             ax.plot(self.ElapsedTime , self.detectorZ)
             ax.set_title("Simple Line Plot")
