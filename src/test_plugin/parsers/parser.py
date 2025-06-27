@@ -46,7 +46,7 @@ class NewParser(MatchingParser):
         #for instrument in f["CAMELS_entry"]["user"]:
         #    instrument_names= instrument_names
         with h5py.File(mainfile, "r") as f:
-            self.set_atribute(f ,archive.data, "measurement_comments" , ["CAMELS_entry" "measurement_details" "measurement_comments"])
+            self.set_atribute(f,archive.data, "measurement_comments" , ["CAMELS_entry" "measurement_details" "measurement_comments"])
             self.set_atribute(f,archive.data,"measurement_description",["CAMELS_entry","measurement_details","measurement_description"])
             self.set_atribute(f,archive.data,"protocol_description",["CAMELS_entry","measurement_details","protocol_description"])
             self.set_atribute(f,archive.data,"time",["CAMELS_entry","data","time"])
@@ -55,7 +55,7 @@ class NewParser(MatchingParser):
             self.set_atribute(f,archive.data,"last_name",["CAMELS_entry","user","last_name"])
             self.set_atribute(f,archive.data,"email",["CAMELS_entry","user","email"])
             self.set_atribute(f,archive.data,"affiliation",["CAMELS_entry","user","affiliation"])
-            self.set_atribute(f,archive.data,"detectorZ",["CAMELS_entry","data","demo_instrument_detectorZ"])
+            self.set_atribute(f,archive.data,"detectorX",["CAMELS_entry","data","demo_instrument_detectorX"])
             archive.data.certain_value= "test"
         logger.info("h5 was read propperly")
         logger.info(str(os.getcwd()))
