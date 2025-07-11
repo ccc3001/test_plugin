@@ -251,7 +251,7 @@ def import_avg_plot(minimum,maximum,average,container_name):
 
 
 
-def import_print_button()
+def import_print_button():
   return ["""
   button.print-button {
   width: 100px;
