@@ -1,6 +1,6 @@
 
 from nomad.config import config
-from nomad.datamodel.data import EntryData,ArchiveSection
+from nomad.datamodel.data import EntryData,ArchiveSection,MSection
 from nomad.metainfo import Quantity, SchemaPackage
 from nomad.datamodel.metainfo.annotations import ELNAnnotation, ELNComponentEnum
 import numpy as np
@@ -10,6 +10,7 @@ configuration = config.get_plugin_entry_point(
 )
 
 m_package = SchemaPackage()
+
 
 
 def import_graph_lib(x,y):
@@ -365,37 +366,48 @@ def fig_to_base64(fig):
 import matplotlib.pyplot as plt
 
 
+class UserInfo(MSection):
+  first_name = Quantity(
+      type=str
+  )    
+  last_name = Quantity(
+      type= str 
+  )
+  email =  Quantity(
+      type = str 
+  )
+  affiliation = Quantity(
+      type = str 
+  )
+class MeasurementInfo(MSection):
+  measurement_comments = Quantity(
+      type= str 
+  )
+  measurement_description = Quantity(
+      type = str
+  )
+  protocol_description = Quantity(
+      type = str
+  )
+class TimeSeries(MSection):
+
+
+  time = Quantity(
+      type = np.float64,
+      shape = ['*']
+  )
+  elapsed_time = Quantity(
+      type=np.float64,
+      shape = ['*']
+  )
 # Define your schema class
 class NewSchemaPackage(ArchiveSection):
-    measurement_comments = Quantity(
-        type= str 
-    )
-    measurement_description = Quantity(
-        type = str
-    )
-    protocol_description = Quantity(
-        type = str
-    )
-    time = Quantity(
-        type = np.float64,
-        shape = ['*']
-    )
-    elapsed_time = Quantity(
-        type=np.float64,
-        shape = ['*']
-    )
-    first_name = Quantity(
-        type=str
-    )    
-    last_name = Quantity(
-        type= str 
-    )
-    email =  Quantity(
-        type = str 
-    )
-    affiliation = Quantity(
-        type = str 
-    )
+  m_def = Section(label='New Schema Package')
+
+    user_info = Quantity(type=UserInfo, shape=[], sub_section=UserInfo.m_def)
+    protocol_info = Quantity(type=MeasurementInfo, shape=[], sub_section=MeasurementInfo.m_def)
+    time_series = Quantity(type=TimeSeries, shape=[], sub_section=TimeSeries.m_def)
+
 
 
     results_pdf = Quantity(
@@ -465,19 +477,19 @@ class NewSchemaPackage(ArchiveSection):
 {print_button}
 <h1>Test report</h1>
 
-<p id="outline"> Researcher: {self.first_name} {self.last_name}
-<br>Email: {self.email}
-<br>Institute: {self.affiliation}</p>
+<p id="outline"> Researcher: {self.user_info.first_name} {self.user_info.last_name}
+<br>Email: {self.user_info.email}
+<br>Institute: {self.user_info.affiliation}</p>
 
 
 <h2>Protocol description </h2>
-<p id="outline"><br>{self.protocol_description}<br><br><p><br>
+<p id="outline"><br>{self.protocol_info.protocol_description}<br><br><p><br>
 <h2>Measurement description </h2>
-<p id="outline"><br>{self.measurement_description}<br><br><p><br>
+<p id="outline"><br>{self.protocol_info.measurement_description}<br><br><p><br>
 <p id="outline"><br>min: {minimum} max: {maximum} <br>mean: {mean} average: {average} <br><br></p>
 <h2>Measurement Comments</h2>
 {plot_canvas}
-<p id="outline"><br>{self.measurement_comments}<br><br><p>
+<p id="outline"><br>{self.protocol_info.measurement_comments}<br><br><p>
 {kathode_1_container}
 
 </div>
@@ -493,7 +505,7 @@ class NewSchemaPackage(ArchiveSection):
         output=f"test.html"
         if self.detectorX is not None:
             fig,ax = plt.subplots()
-            ax.plot(self.ElapsedTime , self.detectorX)
+            ax.plot(self.time_series.ElapsedTime , self.detectorX)
             ax.set_title("Simple Line Plot")
             ax.set_xlabel("X-axis")
             ax.set_ylabel("Y-axis")
