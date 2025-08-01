@@ -1,7 +1,7 @@
 
 from nomad.config import config
-from nomad.datamodel.data import EntryData,ArchiveSection,MSection
-from nomad.metainfo import Quantity, SchemaPackage
+from nomad.datamodel.data import EntryData,ArchiveSection
+from nomad.metainfo import Quantity, SchemaPackage , Section , SubSection , MSection
 from nomad.datamodel.metainfo.annotations import ELNAnnotation, ELNComponentEnum
 import numpy as np
 #import test_plugin.parsers.graphs as graphs
@@ -402,11 +402,11 @@ class TimeSeries(MSection):
   )
 # Define your schema class
 class NewSchemaPackage(ArchiveSection):
-  m_def = Section(label='New Schema Package')
+    m_def = Section(label='New Schema Package')
 
-    user_info = Quantity(type=UserInfo, shape=[], sub_section=UserInfo.m_def)
-    protocol_info = Quantity(type=MeasurementInfo, shape=[], sub_section=MeasurementInfo.m_def)
-    time_series = Quantity(type=TimeSeries, shape=[], sub_section=TimeSeries.m_def)
+    user_info = SubSection(section_def=UserInfo)
+    protocol_info = SubSection(section_def=MeasurementInfo)
+    time_series = SubSection(section_def=TimeSeries)
 
 
 
