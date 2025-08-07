@@ -59,7 +59,7 @@ class NewParser(MatchingParser):
             self.set_atribute(f,archive.data.user_info,"affiliation",["CAMELS_entry","user","affiliation"])
             for key in f["CAMELS_entry"]["instruments"]:
                 if "opc" and "ua" in key:
-                                        if f["CAMELS_entry"]["data"][key+"MIO_TV_01_A_PWM_pwmDutyCycle"] is not None:
+                    if f["CAMELS_entry"]["data"][key+"MIO_TV_01_A_PWM_pwmDutyCycle"] is not None:
                         self.set_atribute(f,archive.data.mio_data,"TV_01_A_PWM_pwmDutyCycle",["CAMELS_entry","data",key+"MIO_TV_01_A_PWM_pwmDutyCycle"])
                     if f["CAMELS_entry"]["data"][key+"MIO_TV_01_B_PWM_pwmDutyCycle"] is not None:
                         self.set_atribute(f,archive.data.mio_data,"TV_01_B_PWM_pwmDutyCycle",["CAMELS_entry","data",key+"MIO_TV_01_B_PWM_pwmDutyCycle"])
