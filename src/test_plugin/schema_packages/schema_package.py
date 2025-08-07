@@ -1,7 +1,7 @@
 
 from nomad.config import config
 from nomad.datamodel.data import EntryData,ArchiveSection
-from nomad.metainfo import Quantity, SchemaPackage , Section , SubSection , MSection
+from nomad.metainfo import Quantity, SchemaPackage , Section , SubSection , MSection,SectionProxy
 from nomad.datamodel.metainfo.annotations import ELNAnnotation, ELNComponentEnum
 import numpy as np
 #import test_plugin.parsers.graphs as graphs
@@ -401,7 +401,7 @@ class TimeSeries(MSection):
       shape = ['*']
   )
 
-class MIOData(MSection):
+class MIOData(ArchiveSection):
   TV_01_A_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
   TV_01_B_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
   TV_02_A_PWM_doDiagnostics= Quantity( type=np.float64, shape=['*'])
@@ -561,7 +561,8 @@ class MIOData(MSection):
   Fluids_Thermal_B_TT_03_Celsius= Quantity( type=np.float64, shape=['*'])
   Fluids_Thermal_B_TT_04_Celsius= Quantity( type=np.float64, shape=['*'])
 
-class ACTIFData(MSection):
+class ACTIFData(ArchiveSection):
+  #m_def=Section()
   Anode_GasSupply_state= Quantity( type=np.float64, shape=['*'])
   Anode_PC_01_A_cmd= Quantity( type=np.float64, shape=['*'])
   Anode_PC_01_A_state= Quantity( type=np.float64, shape=['*'])
@@ -614,13 +615,15 @@ class ACTIFData(MSection):
   Thermal_PV_02_cmd= Quantity( type=np.float64, shape=['*'])
   Thermal_PV_02_state= Quantity( type=np.float64, shape=['*'])
 
-class ACTIF2Data(MSection):
+class ACTIF2Data(ArchiveSection):
+  #m_def=Section()
   RH_01_A_state= Quantity( type=np.float64, shape=['*'])
   RH_01_A_cmd= Quantity( type=np.float64, shape=['*'])
   RH_01_B_state= Quantity( type=np.float64, shape=['*'])
   RH_01_B_cmd= Quantity( type=np.float64, shape=['*'])
 
-class HP_CANData(MSection):
+class HP_CANData(ArchiveSection):
+  #m_def=Section()
   Net_A_fbCAN_FSM_iStep= Quantity( type=np.float64, shape=['*'])
   Net_A_RH01_actValues_current_act_A= Quantity( type=np.float64, shape=['*'])
   Net_A_RH01_actValues_power_act_W= Quantity( type=np.float64, shape=['*'])
@@ -640,15 +643,52 @@ class HP_CANData(MSection):
 
 # Define your schema class
 class NewSchemaPackage(ArchiveSection):
-    m_def = Section(label='New Schema Package')
+    #m_def=Section()
+    #m_def = Section(label='New Schema Package')
+    mio_data = SubSection(section=SectionProxy("MIOData"), repeat =False)
+    actif_data= SubSection(section=SectionProxy("ACTIFData"), repeat = False)
+    actif2_data= SubSection(section=SectionProxy("ACTIF2Data"),repeat = False)
+    hp_can_data= SubSection(section=SectionProxy("HP_CANData"), repeat= False)
 
-    user_info = SubSection(sub_section=UserInfo)
-    protocol_info = SubSection(sub_section=MeasurementInfo)
-    time_series = SubSection(sub_section=TimeSeries)
-    mio_data = SubSection(sub_section=MIOData)
-    actif_data= SubSection(sub_section=ACTIFData)
-    actif2_data= SubSection(sub_section=ACTIF2Data)
-    hp_can_data= SubSection(sub_section=HP_CANData)
+
+    #user_info = SubSection(sub_section=UserInfo)
+    #protocol_info = SubSection(sub_section=MeasurementInfo)
+    ##time_series = SubSection(sub_section=TimeSeries)
+  #class UserInfo(MSection):
+    first_name = Quantity(
+        type=str
+    )    
+    last_name = Quantity(
+        type= str 
+    )
+    email =  Quantity(
+        type = str 
+    )
+    affiliation = Quantity(
+        type = str 
+    )
+  #class MeasurementInfo(MSection):
+    measurement_comments = Quantity(
+        type= str 
+    )
+    measurement_description = Quantity(
+        type = str
+    )
+    protocol_description = Quantity(
+        type = str
+    )
+  #class TimeSeries(MSection)  : 
+
+
+    time = Quantity(
+        type = np.float64,
+        shape = ['*']
+    )
+    elapsed_time = Quantity(
+        type=np.float64,
+        shape = ['*']
+    )
+
 
 
     results_pdf = Quantity(
@@ -750,7 +790,7 @@ class NewSchemaPackage(ArchiveSection):
             ax.set_title("Simple Line Plot")
             ax.set_xlabel("X-axis")
             ax.set_ylabel("Y-axis")
-            encoded = fig_to_base64(fig)
+            #encoded = fig_to_base64(fig)
             #image_html = '<img src="data:image/png;base64, {}" widht=60%% style="display: block; margin: 0 auto;">'.format(encoded.decode('utf-8'))
             final_html = self.create_pdf()
             with archive.m_context.raw_file(output,'w') as file:
