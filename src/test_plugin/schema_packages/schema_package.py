@@ -1,9 +1,16 @@
 
 from nomad.config import config
-from nomad.datamodel.data import EntryData,ArchiveSection
+from nomad.datamodel.data import EntryData,ArchiveSection 
 from nomad.metainfo import Quantity, SchemaPackage , Section , SubSection , MSection,SectionProxy
+
 from nomad.datamodel.metainfo.annotations import ELNAnnotation, ELNComponentEnum
 import numpy as np
+
+from nomad.datamodel.metainfo.plot import PlotSection, PlotlyFigure
+import plotly.express as px
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+import os 
 #import test_plugin.parsers.graphs as graphs
 configuration = config.get_plugin_entry_point(
     'test_plugin.schema_packages:schema_package_entry_point'
@@ -239,7 +246,10 @@ def import_avg_plot_basics():
 </script>
   """]
 
-def import_avg_plot(minimum,maximum,average,container_name):
+def import_avg_plot(data,container_name):
+    minimum=np.min(data)
+    maximum=np.max(data)
+    average=np.average(data)
     return [f"""
     <div class="scale-wrapper" id="{container_name}"></div>
     """,
@@ -348,13 +358,13 @@ button.print-button:hover .print-icon::before {
 
 
 
-import base64
-import io 
-def fig_to_base64(fig):
-    img =io.BytesIO()
-    fig.savefig(img,format='png',bbox_inches='tight')
-    img.seek(0)
-    return base64.b64encode(img.getvalue())
+#import base64
+#import io 
+#def fig_to_base64(fig):
+#    img =io.BytesIO()
+#    fig.savefig(img,format='png',bbox_inches='tight')
+#    img.seek(0)
+#    return base64.b64encode(img.getvalue())
 
 
 
@@ -400,246 +410,412 @@ class TimeSeries(MSection):
       type=np.float64,
       shape = ['*']
   )
+class Ploted_values(PlotSection,ArchiveSection):
+    data=Quantity(type=np.float64,shape =['*'])
+    """
+    def get_trace_index(self,left_idx, right_idx):
+          divider= int(len(data)/50)
+          if divider<=6:
+            divider=5
+          left_indices = list(range(0, len(self.data), divider))
+          right_indices = list(range(0, len(self.data), divider))
+          count = 0
+          for l in left_indices:
+              for r in right_indices:
+                  if r > l:
+                      if l == left_idx and r == right_idx:
+                          return count
+                      count += 1
+          return None
+    def generate_scan_plot(self):
+        
+        fig = go.Figure()
+        for left in left_indices:
+          for right in right_indices:
+              if right > left:  # Only valid slices
+                  fig.add_trace(
+                      go.Scatter(
+                          visible=False,
+                          line=dict(color='#00CED1', width=1),
+                          name=f"Slice {left}:{right}",
+                          x=self.m_parent.m_parent.elapsed_time[left:right],
+                          y=self.data[left:right]
+                      )
+                  )
+        fig.data[0].visible = True
+
+        
+
+        steps_left = []
+        for left in left_indices:
+            step = dict(
+                method="update",
+                args=[{"visible": [False]*len(fig.data)}],
+                label=str(left)
+            )
+            for right in right_indices:
+                if right > left:
+                    idx = self._trace_index(left, right)
+                    step["args"][0]["visible"][idx] = True
+            steps_left.append(step)
+
+        slider_left = dict(
+            active=0,
+            currentvalue={"prefix": "Left index: "},
+            pad={"t": 50},
+            steps=steps_left
+        )
+
+        # Slider for 'right'
+        steps_right = []
+        for right in right_indices:
+            step = dict(
+                method="update",
+                args=[{"visible": [False]*len(fig.data)}],
+                label=str(right)
+            )
+            for left in left_indices:
+                if right > left:
+                    idx = self.get_trace_index(left, right)
+                    step["args"][0]["visible"][idx] = True
+            steps_right.append(step)
+
+        slider_right = dict(
+            active=0,
+            currentvalue={"prefix": "Right index: "},
+            pad={"t": 50},
+            steps=steps_right
+        )
+
+        fig.update_layout(sliders=[slider_left, slider_right])
+        
+        return PlotlyFigure(label='data', figure=fig.to_plotly_json())
+"""
+    def normalize(self, archive, logger):
+      super(Ploted_values, self).normalize(archive, logger)
+      if self.data is None or len(self.data) == 0:
+        return 0
+        #self.append(self.generate_scan_plot())
+      figure1= px.line(x=self.m_parent.m_parent.elapsed_time, y=self.data, title="")
+      self.figures.append(PlotlyFigure(label='figure', figure=figure1.to_plotly_json()))
+
+
+      """
+      m_def=Section(
+        a_plot={
+        'label': 'Pressure and Temperature vs Time',
+        'x': f'{self.m_parent.time}',
+        'y': './data',
+        'config': {'editable': False, 'scrollZoom': True}
+        },
+        a_table={
+        'columns': ['./data'],
+        'label': 'Measurement Table'
+        }
+      )
+      m_annotations={
+        "eln": {
+            "show": True,
+            "widgets": [
+                {"type": "DataTable", "label": "Table View"},
+                {"type": "PlotlyGraph", "label": "Graph View"}
+            ]
+        }
+    }
+    """
+
 
 class MIOData(ArchiveSection):
-  TV_01_A_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_01_B_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_02_A_PWM_doDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_02_A_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_02_B_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_03_A_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_03_B_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  TV_01_A_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_01_B_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_02_A_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_02_B_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_03_A_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  TV_03_B_pos_viDiagnostics= Quantity( type=np.float64, shape=['*'])
-  AR_01_PWM_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Supply_Position_Sensors_TV_voDiagnostics= Quantity( type=np.float64, shape=['*'])
-  T_ambient= Quantity( type=np.float64, shape=['*'])
-  p_ambient= Quantity( type=np.float64, shape=['*'])
-  RoundTrip_in_diDiagnostics= Quantity( type=np.float64, shape=['*'])
-  T_ambient_Celsius= Quantity( type=np.float64, shape=['*'])
-  p_ambient_barA= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_A_PV_01_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_A_PC_01_pDiff= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_A_PC_01_pDiff_ref= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_B_PV_01_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_B_PC_01_pDiff= Quantity( type=np.float64, shape=['*'])
-  Actuators_Anode_B_PC_01_pDiff_ref= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_FLKS_01_freq_ref_Hz= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_FLKS_01_fan_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_PV_01_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_PV_02_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_MV_01_ref_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_MV_01_act_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_CP_01_freq_ref_Hz= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_CP_01_freq_act_Hz= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_A_AV_01_ref_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_A_AV_01_act_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_B_AV_01_ref_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Thermal_B_AV_01_act_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_AR_01_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_EH_01_Power_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_EH_02_Power_prct= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_01_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_01_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_02_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_02_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_03_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_A_TV_03_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_01_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_01_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_02_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_02_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_03_pos_V= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_B_TV_03_pwmDutyCycle= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_p_PSIA= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_T_Celsius= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_Vflow_LPM= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_mflow_SLPM= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_ref_SLPM= Quantity( type=np.float64, shape=['*'])
-  Actuators_Cathode_MFC_01_00_set_SLPM= Quantity( type=np.float64, shape=['*'])
-  ECAT_10301_moduleQuality= Quantity( type=np.float64, shape=['*'])
-  ECAT_10302_moduleQuality= Quantity( type=np.float64, shape=['*'])
-  ECAT_10303_moduleQuality= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_RX_Device_Readings_Gas_Index= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_RX_Command_Result_Last_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_RX_Command_Result_Last_Command_Status= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_TX_Setpoint_Setpoint= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_TX_Command_Request_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1001_TX_Command_Request_Command_Argument= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_RX_Device_Readings_Gas_Index= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_RX_Command_Result_Last_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_RX_Command_Result_Last_Command_Status= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_TX_Setpoint_Setpoint= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_TX_Command_Request_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1002_TX_Command_Request_Command_Argument= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_RX_Device_Readings_Gas_Index= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_RX_Command_Result_Last_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_RX_Command_Result_Last_Command_Status= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_TX_Setpoint_Setpoint= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_TX_Command_Request_Command_ID= Quantity( type=np.float64, shape=['*'])
-  ECAT_1004_TX_Command_Request_Command_Argument= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_PT_01_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_PT_02_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_PT_03_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_01_0_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_05_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_02_0_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_06_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_03_0_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_07_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_TT_04_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_PT_04_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_PT_05_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_PT_06_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_MFT_02_slpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_RHT_01_prctRH= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_TT_09_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_TT_08_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_TT_10_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_TT_11_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_A_TT_12_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_PT_04_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_PT_05_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_PT_06_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_MFT_02_slpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_TT_08_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_TT_10_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_TT_11_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Cathode_B_TT_12_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_PT_01_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_TT_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_A_PT_03_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_A_PT_04_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_A_TT_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_A_TT_03_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_B_PT_03_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_B_PT_04_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_B_TT_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_B_TT_03_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_A_p_PSIA= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_A_T_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_A_Vflow_LPM= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_A_mflow_SLPM= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_A_mTotal_SL= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_B_p_PSIA= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_B_T_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_B_Vflow_LPM= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_B_mflow_SLPM= Quantity( type=np.float64, shape=['*'])
-  Fluids_Anode_MFT_01_B_mTotal_SL= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_01_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_02_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_03_A_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_03_B_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_04_A_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_04_B_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_05_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_PT_06_barG= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_MFT_01_02_lpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_MFT_02_lpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_01_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_03_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_05_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_02_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_04_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_06_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_08_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_07_01_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_09_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_11_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_TT_01_02_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_A_MFT_01_lpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_A_TT_03_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_A_TT_04_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_B_MFT_01_lpm= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_B_TT_03_Celsius= Quantity( type=np.float64, shape=['*'])
-  Fluids_Thermal_B_TT_04_Celsius= Quantity( type=np.float64, shape=['*'])
+  TV_01_A_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_01_B_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_02_A_PWM_doDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_02_A_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_02_B_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_03_A_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_03_B_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_01_A_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_01_B_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_02_A_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_02_B_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_03_A_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  TV_03_B_pos_viDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  AR_01_PWM_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Supply_Position_Sensors_TV_voDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  T_ambient= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  p_ambient= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  RoundTrip_in_diDiagnostics= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  T_ambient_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  p_ambient_barA= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_A_PV_01_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_A_PC_01_pDiff= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_A_PC_01_pDiff_ref= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_B_PV_01_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_B_PC_01_pDiff= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Anode_B_PC_01_pDiff_ref= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_FLKS_01_freq_ref_Hz= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_FLKS_01_fan_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_PV_01_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_PV_02_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_MV_01_ref_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_MV_01_act_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_CP_01_freq_ref_Hz= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_CP_01_freq_act_Hz= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_A_AV_01_ref_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_A_AV_01_act_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_B_AV_01_ref_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Thermal_B_AV_01_act_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_AR_01_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_EH_01_Power_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_EH_02_Power_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_01_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_01_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_02_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_02_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_03_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_A_TV_03_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_01_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_01_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_02_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_02_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_03_pos_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_B_TV_03_pwmDutyCycle= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_p_PSIA= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_T_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_Vflow_LPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_mflow_SLPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_ref_SLPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Actuators_Cathode_MFC_01_00_set_SLPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_10301_moduleQuality= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_10302_moduleQuality= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_10303_moduleQuality= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_RX_Device_Readings_Gas_Index= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_RX_Command_Result_Last_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_RX_Command_Result_Last_Command_Status= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_TX_Setpoint_Setpoint= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_TX_Command_Request_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1001_TX_Command_Request_Command_Argument= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_RX_Device_Readings_Gas_Index= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_RX_Command_Result_Last_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_RX_Command_Result_Last_Command_Status= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_TX_Setpoint_Setpoint= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_TX_Command_Request_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1002_TX_Command_Request_Command_Argument= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_RX_Device_Readings_Gas_Index= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_RX_Command_Result_Last_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_RX_Command_Result_Last_Command_Status= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_TX_Setpoint_Setpoint= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_TX_Command_Request_Command_ID= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  ECAT_1004_TX_Command_Request_Command_Argument= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_PT_01_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_PT_02_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_PT_03_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_01_0_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_05_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_02_0_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_06_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_03_0_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_07_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_TT_04_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_PT_04_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_PT_05_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_PT_06_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_MFT_02_slpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_RHT_01_prctRH= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_TT_09_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_TT_08_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_TT_10_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_TT_11_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_A_TT_12_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_PT_04_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_PT_05_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_PT_06_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_MFT_02_slpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_TT_08_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_TT_10_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_TT_11_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Cathode_B_TT_12_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_PT_01_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_TT_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_A_PT_03_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_A_PT_04_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_A_TT_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_A_TT_03_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_B_PT_03_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_B_PT_04_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_B_TT_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_B_TT_03_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_A_p_PSIA= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_A_T_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_A_Vflow_LPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_A_mflow_SLPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_A_mTotal_SL= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_B_p_PSIA= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_B_T_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_B_Vflow_LPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_B_mflow_SLPM= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Anode_MFT_01_B_mTotal_SL= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_01_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_02_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_03_A_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_03_B_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_04_A_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_04_B_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_05_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_PT_06_barG= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_MFT_01_02_lpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_MFT_02_lpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_01_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_03_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_05_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_02_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_04_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_06_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_08_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_07_01_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_09_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_11_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_TT_01_02_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_A_MFT_01_lpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_A_TT_03_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_A_TT_04_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_B_MFT_01_lpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_B_TT_03_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Fluids_Thermal_B_TT_04_Celsius= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+
 
 class ACTIFData(ArchiveSection):
   #m_def=Section()
-  Anode_GasSupply_state= Quantity( type=np.float64, shape=['*'])
-  Anode_PC_01_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Anode_PC_01_A_state= Quantity( type=np.float64, shape=['*'])
-  Anode_PC_01_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Anode_PC_01_B_state= Quantity( type=np.float64, shape=['*'])
-  Anode_PV_01_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Anode_PV_01_A_state= Quantity( type=np.float64, shape=['*'])
-  Anode_PV_01_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Anode_PV_01_B_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_AC_01_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_AC_01_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_EH_01_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_EH_01_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_EH_02_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_EH_02_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_MFC_01_00_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_MFC_01_00_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_A_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_A_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_B_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_01_B_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_A_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_A_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_B_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_02_B_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_A_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_A_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_B_state= Quantity( type=np.float64, shape=['*'])
-  Cathode_TV_03_B_theta_prct= Quantity( type=np.float64, shape=['*'])
-  Thermal_AV_01_A_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_AV_01_A_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_AV_01_B_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_AV_01_B_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_CP_01_cmd_prct= Quantity( type=np.float64, shape=['*'])
-  Thermal_CP_01_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_FLKS_01_CP_01_cmd_prct= Quantity( type=np.float64, shape=['*'])
-  Thermal_FLKS_01_CP_01_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_FLKS_01_Fan_01_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_FLKS_01_Fan_01_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_MV_01_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_MV_01_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_PV_01_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_PV_01_state= Quantity( type=np.float64, shape=['*'])
-  Thermal_PV_02_cmd= Quantity( type=np.float64, shape=['*'])
-  Thermal_PV_02_state= Quantity( type=np.float64, shape=['*'])
+  Anode_GasSupply_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PC_01_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PC_01_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PC_01_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PC_01_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PV_01_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PV_01_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PV_01_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Anode_PV_01_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_AC_01_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_AC_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_EH_01_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_EH_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_EH_02_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_EH_02_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_MFC_01_00_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_MFC_01_00_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_A_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_01_B_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_A_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_02_B_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_A_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Cathode_TV_03_B_theta_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_AV_01_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_AV_01_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_AV_01_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_AV_01_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_CP_01_cmd_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_CP_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_FLKS_01_CP_01_cmd_prct= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_FLKS_01_CP_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_FLKS_01_Fan_01_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_FLKS_01_Fan_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_MV_01_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_MV_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_PV_01_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_PV_01_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_PV_02_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Thermal_PV_02_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+
 
 class ACTIF2Data(ArchiveSection):
   #m_def=Section()
-  RH_01_A_state= Quantity( type=np.float64, shape=['*'])
-  RH_01_A_cmd= Quantity( type=np.float64, shape=['*'])
-  RH_01_B_state= Quantity( type=np.float64, shape=['*'])
-  RH_01_B_cmd= Quantity( type=np.float64, shape=['*'])
+  RH_01_A_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  RH_01_A_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  RH_01_B_state= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  RH_01_B_cmd= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+
 
 class HP_CANData(ArchiveSection):
   #m_def=Section()
-  Net_A_fbCAN_FSM_iStep= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_actValues_current_act_A= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_actValues_power_act_W= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_actValues_speed_act_rpm= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_actValues_T_circuit_C= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_actValues_voltage_act_V= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_cmd_mDot_cmd_kgph= Quantity( type=np.float64, shape=['*'])
-  Net_A_RH01_cmd_speed_cmd_rpm= Quantity( type=np.float64, shape=['*'])
-  Net_B_fbCAN_FSM_iStep= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_actValues_current_act_A= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_actValues_power_act_W= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_actValues_speed_act_rpm= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_actValues_T_circuit_C= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_actValues_voltage_act_V= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_cmd_mDot_cmd_kgph= Quantity( type=np.float64, shape=['*'])
-  Net_B_RH01_cmd_speed_cmd_rpm= Quantity( type=np.float64, shape=['*'])
+  Net_A_fbCAN_FSM_iStep= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_actValues_current_act_A= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_actValues_power_act_W= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_actValues_speed_act_rpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_actValues_T_circuit_C= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_actValues_voltage_act_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_cmd_mDot_cmd_kgph= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_A_RH01_cmd_speed_cmd_rpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_fbCAN_FSM_iStep= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_actValues_current_act_A= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_actValues_power_act_W= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_actValues_speed_act_rpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_actValues_T_circuit_C= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_actValues_voltage_act_V= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_cmd_mDot_cmd_kgph= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+  Net_B_RH01_cmd_speed_cmd_rpm= SubSection(section=SectionProxy("Ploted_values"), repeat = False)
+
+
+class test_Section(PlotSection, EntryData):
+    time = Quantity(type=np.float64, shape=['*'], unit = 's')
+    chamber_pressure = Quantity(type=np.float64, shape=['*'], unit='Pa' )
+    substrate_temperature = Quantity(type=np.float64, shape=['*'], unit='K')
+    
+    m_def = Section(
+        a_plot={
+        'label': 'Pressure and Temperature vs Time',
+        'x': './time',
+        'y': ['./chamber_pressure', './substrate_temperature'],
+        'config': {'editable': True, 'scrollZoom': False}
+        },
+        a_table={
+        'columns': ['./time', './chamber_pressure', './substrate_temperature'],
+        'label': 'Measurement Table'
+        }
+    )
+    m_annotations = {
+        "eln": {
+            "show": True,
+            "widgets": [
+                {"type": "DataTable", "label": "Table View"},
+                {"type": "PlotlyGraph", "label": "Graph View"}
+            ]
+        }
+    }
+      
+
+    """
+  m_def = Section()
+  time = Quantity(type=np.float64, shape=['*'], unit = 's')
+  substrate_temperature = Quantity(type=np.float64, shape=['*'], unit='K')
+  chamber_pressure = Quantity(type=np.float64, shape=['*'], unit='Pa' )
+  def normalize(self, archive, logger):
+        super(test_Section, self).normalize(archive, logger)
+
+        first_line = px.scatter(x=self.time, y=self.m_parent.elapsed_time)
+        second_line = px.scatter(x=self.time, y=self.chamber_pressure)
+        figure1 = make_subplots(rows=1, cols=2, shared_yaxes=True)
+        figure1.add_trace(first_line.data[0], row=1, col=1)
+        figure1.add_trace(second_line.data[0], row=1, col=2)
+        figure1.update_layout(height=400, width=716, title_text="Creating Subplots in Plotly")
+        self.figures.append(PlotlyFigure(label='figure 1', figure=figure1.to_plotly_json()))
+
+        figure2 = px.scatter(x=self.substrate_temperature, y=self.chamber_pressure, color=self.chamber_pressure, title="Chamber as a function of Temperature")
+        self.figures.append(PlotlyFigure(label='figure 2', index=1, figure=figure2.to_plotly_json()))
+        """
 
 # Define your schema class
 class NewSchemaPackage(ArchiveSection):
@@ -649,12 +825,21 @@ class NewSchemaPackage(ArchiveSection):
     actif_data= SubSection(section=SectionProxy("ACTIFData"), repeat = False)
     actif2_data= SubSection(section=SectionProxy("ACTIF2Data"),repeat = False)
     hp_can_data= SubSection(section=SectionProxy("HP_CANData"), repeat= False)
+    test_section= SubSection(section=SectionProxy("test_Section"), repeat = False)
+    """
+    m_def = Section(a_plot={
+        'label': 'Temperature and Pressure',
+        'x': './time',
+        'y': ['./time', './elapsed_time'],
+        'config': {
+            'editable': True,
+            'scrollZoom': False
+        }})
+        """
+    file_name = Quantity(
+      type = str 
+    )
 
-
-    #user_info = SubSection(sub_section=UserInfo)
-    #protocol_info = SubSection(sub_section=MeasurementInfo)
-    ##time_series = SubSection(sub_section=TimeSeries)
-  #class UserInfo(MSection):
     first_name = Quantity(
         type=str
     )    
@@ -710,13 +895,38 @@ class NewSchemaPackage(ArchiveSection):
 
 
     def create_pdf(self):
-        minimum = np.min(self.detectorX)
-        maximum = np.max(self.detectorX)
-        average =np.average(self.detectorX)
-        mean = np.mean(self.detectorX)
+        minimum = np.min(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
+        maximum = np.max(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
+        average =np.average(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
+        mean = np.mean(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
         avg_plot_style,avg_plot_script = import_avg_plot_basics()#graphs.
-        plot_style,plot_canvas,plot_script = import_graph_lib([i for i in range(0,len(self.detectorX))],list(self.detectorX))#graphs.
-        kathode_1_container,kathode_1_script =import_avg_plot(minimum,maximum,average,"test")#graphs.
+        plot_style,plot_canvas,plot_script = import_graph_lib(list(self.elapsed_time),list(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data))#graphs.
+        #kathode_1_container,kathode_1_script =import_avg_plot(minimum,maximum,average,"test")#graphs.
+        bar_graph_scripts=""
+        Fluids_Anode_A_TT_02_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_TT_02_Celsius.data,"Fluids_Anode_A_TT_02_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Cathode_A_TT_10_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_TT_10_Celsius.data,"Fluids_Cathode_A_TT_10_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Thermal_A_TT_03_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_A_TT_03_Celsius.data,"Fluids_Thermal_A_TT_03_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Anode_A_TT_03_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_TT_03_Celsius.data,"Fluids_Anode_A_TT_03_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Cathode_A_TT_11_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_TT_11_Celsius.data,"Fluids_Cathode_A_TT_11_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Thermal_A_TT_04_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_A_TT_04_Celsius.data,"Fluids_Thermal_A_TT_04_Celsius")
+        bar_graph_scripts+=tmp
+        Fluids_Anode_A_PT_03_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_03_barG.data,"Fluids_Anode_A_PT_03_barG")
+        bar_graph_scripts+=tmp
+        Fluids_Cathode_A_PT_05_barG,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_PT_05_barG.data,"Fluids_Cathode_A_PT_05_barG")
+        bar_graph_scripts+=tmp
+        Fluids_Thermal_PT_03_A_barG,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_PT_03_A_barG.data,"Fluids_Thermal_PT_03_A_barG")
+        bar_graph_scripts+=tmp
+        Fluids_Anode_A_PT_03_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_03_barG.data,"Fluids_Anode_A_PT_03_barG")
+        bar_graph_scripts+=tmp
+        Fluids_Cathode_A_PT_06_barG,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_PT_06_barG.data,"Fluids_Cathode_A_PT_06_barG")
+        bar_graph_scripts+=tmp
+        Fluids_Thermal_PT_04_A_barG,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_PT_04_A_barG.data,"Fluids_Thermal_PT_04_A_barG")
+        bar_graph_scripts+=tmp
         print_style,print_button, print_script = import_print_button()#graphs.
         return f"""
 <!DOCTYPE html>
@@ -752,46 +962,93 @@ class NewSchemaPackage(ArchiveSection):
       }}
     }}       
 </style>
+<style type="text/css">
+.tg  {{border-collapse:collapse;border-spacing:0;}}
+.tg td{{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}}
+.tg th{{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}}
+.tg .tg-baqh{{text-align:center;vertical-align:top}}
+.tg .tg-0pky{{border-color:inherit;text-align:left;vertical-align:top}}
+</style>
 </head>
 <body>
 <div class="content">
 {print_button}
 <h1>Test report</h1>
 
-<p id="outline"> Researcher: {self.user_info.first_name} {self.user_info.last_name}
-<br>Email: {self.user_info.email}
-<br>Institute: {self.user_info.affiliation}</p>
+<p id="outline"> Researcher: {self.first_name} {self.last_name}
+<br>Email: {self.email}
+<br>Institute: {self.affiliation}</p>
 
 
 <h2>Protocol description </h2>
-<p id="outline"><br>{self.protocol_info.protocol_description}<br><br><p><br>
+<p id="outline"><br>{self.protocol_description}<br><br><p><br>
 <h2>Measurement description </h2>
-<p id="outline"><br>{self.protocol_info.measurement_description}<br><br><p><br>
+<p id="outline"><br>{self.measurement_description}<br><br><p><br>
 <p id="outline"><br>min: {minimum} max: {maximum} <br>mean: {mean} average: {average} <br><br></p>
 <h2>Measurement Comments</h2>
 {plot_canvas}
-<p id="outline"><br>{self.protocol_info.measurement_comments}<br><br><p>
-{kathode_1_container}
+<p id="outline"><br>{self.measurement_comments}<br><br><p>
 
+
+<table class="tg"><thead>
+  <tr>
+    <th class="tg-baqh" colspan="4">Stack 1</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky">Anode</td>
+    <td class="tg-0pky">Kathode</td>
+    <td class="tg-0pky">Kühlmittel</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">T_in</td>
+    <td class="tg-0pky">{Fluids_Anode_A_TT_02_Celsius}</td>
+    <td class="tg-0pky">{Fluids_Cathode_A_TT_10_Celsius}</td>
+    <td class="tg-0pky">{Fluids_Thermal_A_TT_03_Celsius}</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">T_out</td>
+    <td class="tg-0pky">{Fluids_Anode_A_TT_03_Celsius}</td>
+    <td class="tg-0pky">{Fluids_Cathode_A_TT_11_Celsius}</td>
+    <td class="tg-0pky">{Fluids_Thermal_A_TT_04_Celsius}</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">m</td>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky"></td>
+    <td class="tg-0pky"></td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">p_in</td>
+    <td class="tg-0pky">{Fluids_Anode_A_PT_03_barG}</td>
+    <td class="tg-0pky">{Fluids_Cathode_A_PT_05_barG}</td>
+    <td class="tg-0pky">{Fluids_Thermal_PT_03_A_barG}</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">p_out</td>
+    <td class="tg-0pky">{Fluids_Anode_A_PT_03_barG}</td>
+    <td class="tg-0pky">{Fluids_Cathode_A_PT_06_barG}</td>
+    <td class="tg-0pky">{Fluids_Thermal_PT_04_A_barG}</td>
+  </tr>
+</tbody>
+</table>
 </div>
 {avg_plot_script}
 {plot_script}
 {kathode_1_script}
+{print_script}
 </body>
 </html>
 """
 
     def normalize(self, archive:'EntryArchive',logger:'BoundLogger')-> None:
         super(NewSchemaPackage,self).normalize(archive,logger)
-        output=f"test.html"
-        if self.detectorX is not None:
-            fig,ax = plt.subplots()
-            ax.plot(self.time_series.ElapsedTime , self.detectorX)
-            ax.set_title("Simple Line Plot")
-            ax.set_xlabel("X-axis")
-            ax.set_ylabel("Y-axis")
-            #encoded = fig_to_base64(fig)
-            #image_html = '<img src="data:image/png;base64, {}" widht=60%% style="display: block; margin: 0 auto;">'.format(encoded.decode('utf-8'))
+
+        output=f"{self.file_name}.html"
+        if self.mio_data.Fluids_Thermal_B_TT_03_Celsius is not None:
             final_html = self.create_pdf()
             with archive.m_context.raw_file(output,'w') as file:
                 file.write(final_html)
