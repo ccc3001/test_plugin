@@ -1038,7 +1038,7 @@ class NewSchemaPackage(ArchiveSection):
 </div>
 {avg_plot_script}
 {plot_script}
-{kathode_1_script}
+{bar_graph_scripts}
 {print_script}
 </body>
 </html>
