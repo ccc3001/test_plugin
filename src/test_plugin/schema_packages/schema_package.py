@@ -1,6 +1,6 @@
 
 from nomad.config import config
-from nomad.datamodel.data import EntryData,ArchiveSection 
+from nomad.datamodel.data import EntryData,ArchiveSection
 from nomad.metainfo import Quantity, SchemaPackage , Section , SubSection , MSection,SectionProxy
 
 from nomad.datamodel.metainfo.annotations import ELNAnnotation, ELNComponentEnum
@@ -10,7 +10,7 @@ from nomad.datamodel.metainfo.plot import PlotSection, PlotlyFigure
 import plotly.express as px
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
-import os 
+import os
 #import test_plugin.parsers.graphs as graphs
 configuration = config.get_plugin_entry_point(
     'test_plugin.schema_packages:schema_package_entry_point'
@@ -32,7 +32,7 @@ canvas {
     }
 
 """,
-"""<canvas id="graphCanvas" width="600" height="400"></canvas>"""
+"""<canvas id="graphCanvas" width="800" height="400"></canvas>"""
 ,
 f"""<script>
   const xValues = {x};
@@ -78,10 +78,12 @@ f"""<script>
     ctx.textAlign = 'center';
 
     // X-axis labels
-    xValues.forEach(x => {{
+    const xSteps = 5;
+    for (let i = 0; i <= xSteps; i++) {{
+      const x = minX + (i * (maxX - minX)) / xSteps;
       const pt = getCanvasCoords(x, minY);
-      ctx.fillText(x, pt.x, canvas.height - padding + 15);
-    }});
+      ctx.fillText(x.toFixed(2), pt.x, canvas.height - padding + 15);
+    }}
 
     // Y-axis labels
     const ySteps = 5;
@@ -137,15 +139,15 @@ f"""<script>
   drawGrid();
   drawLine();
   drawPoints();
-  drawAxisLabels(); 
+  drawAxisLabels();
 </script>"""]
 
 
 def import_avg_plot_basics():
-    return ["""  
+    return ["""
     .scale-wrapper {
       position: relative;
-      width: 400px;
+      width: 239px;
       margin: 60px auto;
       font-family: Arial, sans-serif;
     }
@@ -198,7 +200,7 @@ def import_avg_plot_basics():
     softMin =parseFloat(softMin.toFixed(2));
     softMax=parseFloat(softMax.toFixed(2));
     avg=parseFloat(avg.toFixed(2));
-    
+
     const wrapper = document.getElementById(containerId);
 
     const valueToPercent = val => ((val - hardMin) / (hardMax - hardMin)) * 100;
@@ -247,16 +249,23 @@ def import_avg_plot_basics():
   """]
 
 def import_avg_plot(data,container_name):
-    minimum=np.min(data)
-    maximum=np.max(data)
-    average=np.average(data)
+    minimum=np.round(np.min(data),3)
+    maximum=np.round(np.max(data),3)
+    average=np.round(np.average(data),3)
+    if container_name.endswith("barG"):
+      hardmin_max = "hardMin: 0, hardMax: 5"
+    if container_name.endswith("Celsius"):
+      hardmin_max = "hardMin: 10, hardMax: 50"
     return [f"""
     <div class="scale-wrapper" id="{container_name}"></div>
+    min :{minimum} max:{maximum}
+    avg:{average}
     """,
     f"""
     <script>
-      createScale({{hardMin: 1, hardMax: 50, softMin: {minimum}, softMax: {maximum}, avg: {average}, containerId: '{container_name}'}});
+      createScale({{{hardmin_max}, softMin: {minimum}, softMax: {maximum}, avg: {average}, containerId: '{container_name}'}});
     </script>
+
     """]
 
 
@@ -279,7 +288,7 @@ button.print-button {
   position: relative;
   padding: 0;
   border: 0;
-  
+
   border: none;
   background: transparent;
 }
@@ -291,7 +300,7 @@ span.print-icon, span.print-icon::before, span.print-icon::after, button.print-b
 
 span.print-icon {
   position: relative;
-  display: inline-block;  
+  display: inline-block;
   padding: 0;
   margin-top: 20%;
 
@@ -359,7 +368,7 @@ button.print-button:hover .print-icon::before {
 
 
 #import base64
-#import io 
+#import io
 #def fig_to_base64(fig):
 #    img =io.BytesIO()
 #    fig.savefig(img,format='png',bbox_inches='tight')
@@ -379,19 +388,19 @@ import matplotlib.pyplot as plt
 class UserInfo(MSection):
   first_name = Quantity(
       type=str
-  )    
+  )
   last_name = Quantity(
-      type= str 
+      type= str
   )
   email =  Quantity(
-      type = str 
+      type = str
   )
   affiliation = Quantity(
-      type = str 
+      type = str
   )
 class MeasurementInfo(MSection):
   measurement_comments = Quantity(
-      type= str 
+      type= str
   )
   measurement_description = Quantity(
       type = str
@@ -428,7 +437,7 @@ class Ploted_values(PlotSection,ArchiveSection):
                       count += 1
           return None
     def generate_scan_plot(self):
-        
+
         fig = go.Figure()
         for left in left_indices:
           for right in right_indices:
@@ -444,7 +453,7 @@ class Ploted_values(PlotSection,ArchiveSection):
                   )
         fig.data[0].visible = True
 
-        
+
 
         steps_left = []
         for left in left_indices:
@@ -488,7 +497,7 @@ class Ploted_values(PlotSection,ArchiveSection):
         )
 
         fig.update_layout(sliders=[slider_left, slider_right])
-        
+
         return PlotlyFigure(label='data', figure=fig.to_plotly_json())
 """
     def normalize(self, archive, logger):
@@ -773,7 +782,7 @@ class test_Section(PlotSection, EntryData):
     time = Quantity(type=np.float64, shape=['*'], unit = 's')
     chamber_pressure = Quantity(type=np.float64, shape=['*'], unit='Pa' )
     substrate_temperature = Quantity(type=np.float64, shape=['*'], unit='K')
-    
+
     m_def = Section(
         a_plot={
         'label': 'Pressure and Temperature vs Time',
@@ -795,7 +804,7 @@ class test_Section(PlotSection, EntryData):
             ]
         }
     }
-      
+
 
     """
   m_def = Section()
@@ -837,24 +846,24 @@ class NewSchemaPackage(ArchiveSection):
         }})
         """
     file_name = Quantity(
-      type = str 
+      type = str
     )
 
     first_name = Quantity(
         type=str
-    )    
+    )
     last_name = Quantity(
-        type= str 
+        type= str
     )
     email =  Quantity(
-        type = str 
+        type = str
     )
     affiliation = Quantity(
-        type = str 
+        type = str
     )
   #class MeasurementInfo(MSection):
     measurement_comments = Quantity(
-        type= str 
+        type= str
     )
     measurement_description = Quantity(
         type = str
@@ -862,7 +871,7 @@ class NewSchemaPackage(ArchiveSection):
     protocol_description = Quantity(
         type = str
     )
-  #class TimeSeries(MSection)  : 
+  #class TimeSeries(MSection)  :
 
 
     time = Quantity(
@@ -884,8 +893,8 @@ class NewSchemaPackage(ArchiveSection):
         type= str,
         a_browser=dict(render_value ='HtmlValue')
     )
-    
-    
+
+
     certain_value = Quantity(
         type=str
     )
@@ -921,7 +930,7 @@ class NewSchemaPackage(ArchiveSection):
         bar_graph_scripts+=tmp
         Fluids_Thermal_PT_03_A_barG,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_PT_03_A_barG.data,"Fluids_Thermal_PT_03_A_barG")
         bar_graph_scripts+=tmp
-        Fluids_Anode_A_PT_03_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_03_barG.data,"Fluids_Anode_A_PT_03_barG")
+        Fluids_Anode_A_PT_04_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_04_barG.data,"Fluids_Anode_A_PT_04_barG")
         bar_graph_scripts+=tmp
         Fluids_Cathode_A_PT_06_barG,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_PT_06_barG.data,"Fluids_Cathode_A_PT_06_barG")
         bar_graph_scripts+=tmp
@@ -944,7 +953,7 @@ class NewSchemaPackage(ArchiveSection):
       min-height: 297mm;
       margin: 10mm auto;
       padding: 20mm;
-      background: white;   
+      background: white;
         }}
 @media print {{
       @page {{
@@ -960,7 +969,7 @@ class NewSchemaPackage(ArchiveSection):
       .page {{
         page-break-after: always;
       }}
-    }}       
+    }}
 </style>
 <style type="text/css">
 .tg  {{border-collapse:collapse;border-spacing:0;}}
@@ -1029,7 +1038,7 @@ class NewSchemaPackage(ArchiveSection):
   </tr>
   <tr>
     <td class="tg-0pky">p_out</td>
-    <td class="tg-0pky">{Fluids_Anode_A_PT_03_barG}</td>
+    <td class="tg-0pky">{Fluids_Anode_A_PT_04_barG}</td>
     <td class="tg-0pky">{Fluids_Cathode_A_PT_06_barG}</td>
     <td class="tg-0pky">{Fluids_Thermal_PT_04_A_barG}</td>
   </tr>
