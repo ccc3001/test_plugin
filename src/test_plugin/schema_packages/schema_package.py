@@ -32,6 +32,7 @@ def import_plot(x_data,y_data,x_label,y_label):
 
 # data is a list of touple [(data,name,label),(data,name)]
 def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
+    tabular_data = {}
     fig = go.Figure()
     for (dataitem,var_name,label) in data:
       if label == "in":
