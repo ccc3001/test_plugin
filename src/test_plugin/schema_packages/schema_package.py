@@ -11,6 +11,9 @@ import plotly.express as px
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import os
+import plotly.express as px
+import pandas as pd
+
 #import test_plugin.parsers.graphs as graphs
 configuration = config.get_plugin_entry_point(
     'test_plugin.schema_packages:schema_package_entry_point'
@@ -19,257 +22,90 @@ configuration = config.get_plugin_entry_point(
 m_package = SchemaPackage()
 
 
+def import_plot(x_data,y_data,x_label,y_label):
+  df=pd.DataFrame(dict(
+    x=x_data,
+    y=y_data
+  ))
+  fig= px.line(df,x=x_label,y=y_label,title="test title")
+  return (fig.to_html(full_html=False,include_plotlyjs=False))
 
-def import_graph_lib(x,y):
-    return [
-        """
-canvas {
-      border: 1px solid #ccc;
-      margin: 40px auto;
-      display: block;
-      outline: none;
-       border: none;
-    }
+# data is a list of touple [(data,name,label),(data,name)]
+def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
+    fig = go.Figure()
+    for (dataitem,var_name,label) in data:
+      if label == "in":
+        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "in",marker_color='darkblue'))
+      elif label =="out":
+        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "out",marker_color='indianred'))
+      tabular_data[var_name,label,"max"]=(np.max(list(dataitem)),3)
+      tabular_data[var_name,label,"min"]=(np.min(list(dataitem)),3)
+      tabular_data[var_name,label,"avg"]=(np.avg(list(dataitem)),3)
 
-""",
-"""<canvas id="graphCanvas" width="800" height="400"></canvas>"""
-,
-f"""<script>
-  const xValues = {x};
-  const yValues = {y};
-
-  const canvas = document.getElementById('graphCanvas');
-  const ctx = canvas.getContext('2d');
-
-  const padding = 50;
-  const width = canvas.width - padding * 2;
-  const height = canvas.height - padding * 2;
-
-  const minX = Math.min(...xValues);
-  const maxX = Math.max(...xValues);
-  const minY = Math.min(...yValues);
-  const maxY = Math.max(...yValues);
-
-  // Transform data point to canvas coordinates
-  function getCanvasCoords(x, y) {{
-    const xNorm = (x - minX) / (maxX - minX);
-    const yNorm = (y - minY) / (maxY - minY);
-    return {{
-      x: padding + xNorm * width,
-      y: canvas.height - padding - yNorm * height
-  }};
-  }}
-
-  // Draw axes
-  function drawAxes() {{
-    ctx.beginPath();
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, canvas.height - padding);
-    ctx.lineTo(canvas.width - padding, canvas.height - padding);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }}
-
-  // Draw grid and labels
-  function drawGrid() {{
-    ctx.fillStyle = '#000';
-    ctx.font = '12px Arial';
-    ctx.textAlign = 'center';
-
-    // X-axis labels
-    const xSteps = 5;
-    for (let i = 0; i <= xSteps; i++) {{
-      const x = minX + (i * (maxX - minX)) / xSteps;
-      const pt = getCanvasCoords(x, minY);
-      ctx.fillText(x.toFixed(2), pt.x, canvas.height - padding + 15);
-    }}
-
-    // Y-axis labels
-    const ySteps = 5;
-    for (let i = 0; i <= ySteps; i++) {{
-      const y = minY + (i * (maxY - minY)) / ySteps;
-      const pt = getCanvasCoords(minX, y);
-      ctx.fillText(y.toFixed(2), padding - 25, pt.y + 3);
-    }}
-  }}
-
-  // Draw line graph
-  function drawLine() {{
-    ctx.beginPath();
-    xValues.forEach((x, i) => {{
-      const pt = getCanvasCoords(x, yValues[i]);
-      if (i === 0) ctx.moveTo(pt.x, pt.y);
-      else ctx.lineTo(pt.x, pt.y);
-    }});
-    ctx.strokeStyle = 'blue';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }}
-
-  // Draw data points
-  function drawPoints() {{
-    ctx.fillStyle = 'red';
-    xValues.forEach((x, i) => {{
-      const pt = getCanvasCoords(x, yValues[i]);
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
-      ctx.fill();
-    }});
-  }}
-  function drawAxisLabels() {{
-  ctx.fillStyle = '#000';
-  ctx.font = '14px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  // X axis label
-  ctx.fillText('X Axis', canvas.width / 2, canvas.height - padding + 35);
-
-  // Y axis label (rotated)
-  ctx.save(); // Save current canvas state
-  ctx.translate(padding - 40, canvas.height / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillText('Y Axis', 0, 0);
-  ctx.restore(); // Restore original state
-  }}
-
-  // Render graph
-  drawAxes();
-  drawGrid();
-  drawLine();
-  drawPoints();
-  drawAxisLabels();
-</script>"""]
-
-
-def import_avg_plot_basics():
-    return ["""
-    .scale-wrapper {
-      position: relative;
-      width: 239px;
-      margin: 60px auto;
-      font-family: Arial, sans-serif;
-    }
-
-    .scale-container {
-      position: relative;
-      width: 100%;
-      height: 20px;
-      background: #ddd;
-      border-radius: 10px;
-    }
-
-    .scale-soft-range {
-      position: absolute;
-      top: 0;
-      height: 20px;
-      background: #8bc34a;
-      border-radius: 10px;
-    }
-
-    .scale-marker {
-      position: absolute;
-      top: -10px;
-      width: 2px;
-      height: 40px;
-      background: #333;
-    }
-
-    .soft-min-marker { background: orange; }
-    .soft-max-marker { background: blue; }
-    .avg-marker      { background: purple; }
-
-    .label-row {
-      position: relative;
-      height: 20px;
-      margin-top: 8px; /* spacing between scale and labels */
-    }
-
-    .label {
-      position: absolute;
-      font-size: 12px;
-      transform: translateX(-50%);
-      white-space: nowrap;
-    }
-"""
-,
-"""
-<script>
-  function createScale({ hardMin, hardMax, softMin, softMax, avg, containerId }) {
-    softMin =parseFloat(softMin.toFixed(2));
-    softMax=parseFloat(softMax.toFixed(2));
-    avg=parseFloat(avg.toFixed(2));
-
-    const wrapper = document.getElementById(containerId);
-
-    const valueToPercent = val => ((val - hardMin) / (hardMax - hardMin)) * 100;
-
-    // === Scale container ===
-    const scale = document.createElement('div');
-    scale.className = 'scale-container';
-
-    const softRange = document.createElement('div');
-    softRange.className = 'scale-soft-range';
-    softRange.style.left = valueToPercent(softMin) + '%';
-    softRange.style.width = (valueToPercent(softMax) - valueToPercent(softMin)) + '%';
-    scale.appendChild(softRange);
-
-    // Add markers
-    const markerData = [
-      { val: softMin, className: 'soft-min-marker' },
-      { val: softMax, className: 'soft-max-marker' },
-      { val: avg,     className: 'avg-marker' }
-    ];
-
-    markerData.forEach(({ val, className }) => {
-      const marker = document.createElement('div');
-      marker.className = `scale-marker ${className}`;
-      marker.style.left = valueToPercent(val) + '%';
-      scale.appendChild(marker);
-    });
-
-    wrapper.appendChild(scale);
-
-    // === Label row below ===
-    const labelRow = document.createElement('div');
-    labelRow.className = 'label-row';
-
-    markerData.forEach(({ val, className }) => {
-      const label = document.createElement('div');
-      label.className = 'label';
-      label.style.left = valueToPercent(val) + '%';
-      label.textContent = `${className.includes('min') ? 'Min' : className.includes('max') ? 'Max' : 'Avg'}: ${val}`;
-      labelRow.appendChild(label);
-    });
-
-    wrapper.appendChild(labelRow);
-  }
-</script>
-  """]
-
-def import_avg_plot(data,container_name):
-    minimum=np.round(np.min(data),3)
-    maximum=np.round(np.max(data),3)
-    average=np.round(np.average(data),3)
-    if container_name.endswith("barG"):
-      hardmin_max = "hardMin: 0, hardMax: 5"
-    if container_name.endswith("Celsius"):
-      hardmin_max = "hardMin: 10, hardMax: 50"
-    return [f"""
-    <div class="scale-wrapper" id="{container_name}"></div>
-    min :{minimum} max:{maximum}
-    avg:{average}
-    """,
-    f"""
-    <script>
-      createScale({{{hardmin_max}, softMin: {minimum}, softMax: {maximum}, avg: {average}, containerId: '{container_name}'}});
-    </script>
-
-    """]
+    fig.update_layout(
+      yaxis=dict(
+        title=dict(
+          text= y_label
+        )
+      ),
+      xaxis=dict(
+        title=dict(
+          text=x_label
+        )
+      ),
+      color="Direction",
+      boxmode='group'
+    )
 
 
 
+    table =f"""<table><thead>
+  <tr>
+    <th></th>
+    <th colspan="2">Anode</th>
+    <th colspan="2">Cathode</th>
+    <th colspan="2">Thermal</th>
+  </tr></thead>
+<tbody>
+  <tr>
+    <td></td>
+    <td>in</td>
+    <td>out</td>
+    <td>in</td>
+    <td>out</td>
+    <td>in</td>
+    <td>out</td>
+  </tr>
+  <tr>
+    <td>min</td>
+    <td>{tabular_data["Anode","in","min"]}</td>
+    <td>{tabular_data["Anode","out","min"]}</td>
+    <td>{tabular_data["Cathode","in","min"]}</td>
+    <td>{tabular_data["Cathode","out","min"]}</td>
+    <td>{tabular_data["Thermal","in","min"]}</td>
+    <td>{tabular_data["Thermal","out","min"]}</td>
+  </tr>
+  <tr>
+    <td>avg</td>
+    <td>{tabular_data["Anode","in","avg"]}</td>
+    <td>{tabular_data["Anode","out","avg"]}</td>
+    <td>{tabular_data["Cathode","in","avg"]}</td>
+    <td>{tabular_data["Cathode","out","avg"]}</td>
+    <td>{tabular_data["Thermal","in","avg"]}</td>
+    <td>{tabular_data["Thermal","out","avg"]}</td>
+  </tr>
+  <tr>
+    <td>max</td>
+    <td>{tabular_data["Anode","in","max"]}</td>
+    <td>{tabular_data["Anode","out","max"]}</td>
+    <td>{tabular_data["Cathode","in","max"]}</td>
+    <td>{tabular_data["Cathode","out","max"]}</td>
+    <td>{tabular_data["Thermal","in","max"]}</td>
+    <td>{tabular_data["Thermal","out","max"]}</td>
+  </tr>
+</tbody></table>"""
+
+    return(fig.to_html(full_html=False,include_plotlyjs=include_plotlyjs_bool)+"\n"+table)
 
 def import_print_button():
   return ["""
@@ -421,6 +257,7 @@ class TimeSeries(MSection):
   )
 class Ploted_values(PlotSection,ArchiveSection):
     data=Quantity(type=np.float64,shape =['*'])
+    name=Quantity(type=  str)
     """
     def get_trace_index(self,left_idx, right_idx):
           divider= int(len(data)/50)
@@ -507,8 +344,12 @@ class Ploted_values(PlotSection,ArchiveSection):
         #self.append(self.generate_scan_plot())
       figure1= px.line(x=self.m_parent.m_parent.elapsed_time, y=self.data, title="")
       self.figures.append(PlotlyFigure(label='figure', figure=figure1.to_plotly_json()))
-
-
+      try:
+        figure2 = go.Figure()
+        figure2.add_trace(go.Box( y=self.data, quartilemethod="linear", name=  "" ))
+        self.figures.append(PlotlyFigure(label="figure2",figure = figure2.to_plotly_json()))
+      except NameError:
+          print("variable namme wasnt defined")
       """
       m_def=Section(
         a_plot={
@@ -904,46 +745,26 @@ class NewSchemaPackage(ArchiveSection):
 
 
     def create_pdf(self):
+
+
         minimum = np.min(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
         maximum = np.max(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
         average =np.average(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
         mean = np.mean(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data)
-        avg_plot_style,avg_plot_script = import_avg_plot_basics()#graphs.
-        plot_style,plot_canvas,plot_script = import_graph_lib(list(self.elapsed_time),list(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data))#graphs.
-        #kathode_1_container,kathode_1_script =import_avg_plot(minimum,maximum,average,"test")#graphs.
-        bar_graph_scripts=""
-        Fluids_Anode_A_TT_02_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_TT_02_Celsius.data,"Fluids_Anode_A_TT_02_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Cathode_A_TT_10_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_TT_10_Celsius.data,"Fluids_Cathode_A_TT_10_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Thermal_A_TT_03_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_A_TT_03_Celsius.data,"Fluids_Thermal_A_TT_03_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Anode_A_TT_03_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_TT_03_Celsius.data,"Fluids_Anode_A_TT_03_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Cathode_A_TT_11_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_TT_11_Celsius.data,"Fluids_Cathode_A_TT_11_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Thermal_A_TT_04_Celsius,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_A_TT_04_Celsius.data,"Fluids_Thermal_A_TT_04_Celsius")
-        bar_graph_scripts+=tmp
-        Fluids_Anode_A_PT_03_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_03_barG.data,"Fluids_Anode_A_PT_03_barG")
-        bar_graph_scripts+=tmp
-        Fluids_Cathode_A_PT_05_barG,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_PT_05_barG.data,"Fluids_Cathode_A_PT_05_barG")
-        bar_graph_scripts+=tmp
-        Fluids_Thermal_PT_03_A_barG,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_PT_03_A_barG.data,"Fluids_Thermal_PT_03_A_barG")
-        bar_graph_scripts+=tmp
-        Fluids_Anode_A_PT_04_barG,tmp=import_avg_plot(self.mio_data.Fluids_Anode_A_PT_04_barG.data,"Fluids_Anode_A_PT_04_barG")
-        bar_graph_scripts+=tmp
-        Fluids_Cathode_A_PT_06_barG,tmp=import_avg_plot(self.mio_data.Fluids_Cathode_A_PT_06_barG.data,"Fluids_Cathode_A_PT_06_barG")
-        bar_graph_scripts+=tmp
-        Fluids_Thermal_PT_04_A_barG,tmp=import_avg_plot(self.mio_data.Fluids_Thermal_PT_04_A_barG.data,"Fluids_Thermal_PT_04_A_barG")
-        bar_graph_scripts+=tmp
+        #avg_plot_style,avg_plot_script = import_avg_plot_basics()#graphs.
+        #plot_style,plot_canvas,plot_script = import_graph_lib(list(self.elapsed_time),list(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data))#graphs.
+        # data is a list of touple [(data,name,label),(data,name)]
+        boxplot_temp_A=import_box_plot([(self.mio_data.Fluids_Anode_A_TT_02_Celsius,"Anode","in"),(self.mio_data.Fluids_Anode_A_TT_03_Celsius,"Anode","out"),(self.mio_data.Fluids_Cathode_A_TT_10_Celsius,"Cathode","in"),(self.mio_data.Fluids_Cathode_A_TT_11_Celsius,"Cathode","out"),(self.mio_data.Fluids_Thermal_A_TT_03_Celsius,"Thermal","in"),(self.mio_data.Fluids_Thermal_A_TT_04_Celsius,"Thermal","out")]," ","Temp[C°]",True)
+        boxplot_preassure_A=import_box_plot([(self.mio_data.Fluids_Anode_A_PT_03_barG,"Anode","in"),(self.mio_data.Fluids_Cathode_A_PT_05_barG,"Cathode","in"),(self.mio_data.Fluids_Thermal_PT_03_A_barG,"Thermal","in"),(self.mio_data.Fluids_Anode_A_PT_04_barG,"Anode","out"),(self.mio_data.Fluids_Cathode_A_PT_06_barG,"Cathode","out"),(self.mio_data.Fluids_Thermal_PT_04_A_barG,"Thermal","out")]," ","Pressure[barg]",False)
+        boxplot_temp_B=import_box_plot([(self.mio_data.Fluids_Anode_B_TT_02_Celsius,"Anode","in"),(self.mio_data.Fluids_Anode_B_TT_03_Celsius,"Anode","out"),(self.mio_data.Fluids_Cathode_B_TT_10_Celsius,"Cathode","in"),(self.mio_data.Fluids_Cathode_B_TT_11_Celsius,"Cathode","out"),(self.mio_data.Fluids_Thermal_B_TT_03_Celsius,"Thermal","in"),(self.mio_data.Fluids_Thermal_B_TT_04_Celsius,"Thermal","out")]," ","Temp[C°]",True)
+        boxplot_preassure_B=import_box_plot([(self.mio_data.Fluids_Anode_B_PT_03_barG,"Anode","in"),(self.mio_data.Fluids_Cathode_B_PT_05_barG,"Cathode","in"),(self.mio_data.Fluids_Thermal_PT_03_B_barG,"Thermal","in"),(self.mio_data.Fluids_Anode_B_PT_04_barG,"Anode","out"),(self.mio_data.Fluids_Cathode_B_PT_06_barG,"Cathode","out"),(self.mio_data.Fluids_Thermal_PT_04_B_barG,"Thermal","out")]," ","Pressure[barg]",False)
+        import_plot(self.elapsed_time, self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data, "elapsed time","Temp[°C]")
         print_style,print_button, print_script = import_print_button()#graphs.
         return f"""
 <!DOCTYPE html>
 <html>
 <head>
 <style>
-{plot_style}
-{avg_plot_style}
 {print_style}
 #outline {{
     outline: 2px solid black;
@@ -1000,54 +821,16 @@ class NewSchemaPackage(ArchiveSection):
 {plot_canvas}
 <p id="outline"><br>{self.measurement_comments}<br><br><p>
 
+<h2>Stack A</h2>
+<p id="outline">{boxplot_temp_A}<br>{boxplot_preassure_A}<p>
 
-<table class="tg"><thead>
-  <tr>
-    <th class="tg-baqh" colspan="4">Stack 1</th>
-  </tr></thead>
-<tbody>
-  <tr>
-    <td class="tg-0pky"></td>
-    <td class="tg-0pky">Anode</td>
-    <td class="tg-0pky">Kathode</td>
-    <td class="tg-0pky">Kühlmittel</td>
-  </tr>
-  <tr>
-    <td class="tg-0pky">T_in</td>
-    <td class="tg-0pky">{Fluids_Anode_A_TT_02_Celsius}</td>
-    <td class="tg-0pky">{Fluids_Cathode_A_TT_10_Celsius}</td>
-    <td class="tg-0pky">{Fluids_Thermal_A_TT_03_Celsius}</td>
-  </tr>
-  <tr>
-    <td class="tg-0pky">T_out</td>
-    <td class="tg-0pky">{Fluids_Anode_A_TT_03_Celsius}</td>
-    <td class="tg-0pky">{Fluids_Cathode_A_TT_11_Celsius}</td>
-    <td class="tg-0pky">{Fluids_Thermal_A_TT_04_Celsius}</td>
-  </tr>
-  <tr>
-    <td class="tg-0pky">m</td>
-    <td class="tg-0pky"></td>
-    <td class="tg-0pky"></td>
-    <td class="tg-0pky"></td>
-  </tr>
-  <tr>
-    <td class="tg-0pky">p_in</td>
-    <td class="tg-0pky">{Fluids_Anode_A_PT_03_barG}</td>
-    <td class="tg-0pky">{Fluids_Cathode_A_PT_05_barG}</td>
-    <td class="tg-0pky">{Fluids_Thermal_PT_03_A_barG}</td>
-  </tr>
-  <tr>
-    <td class="tg-0pky">p_out</td>
-    <td class="tg-0pky">{Fluids_Anode_A_PT_04_barG}</td>
-    <td class="tg-0pky">{Fluids_Cathode_A_PT_06_barG}</td>
-    <td class="tg-0pky">{Fluids_Thermal_PT_04_A_barG}</td>
-  </tr>
-</tbody>
-</table>
+
+<h2>Stack B</h2>
+<p id="outline">{boxplot_temp_B}<br>{boxplot_preassure_B}<p>
+
+
+
 </div>
-{avg_plot_script}
-{plot_script}
-{bar_graph_scripts}
 {print_script}
 </body>
 </html>
