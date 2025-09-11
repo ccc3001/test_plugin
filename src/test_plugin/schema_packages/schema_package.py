@@ -60,8 +60,6 @@ def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
       boxmode='group'
     )
 
-
-
     table =f"""<table><thead>
   <tr>
     <th></th>
@@ -107,7 +105,6 @@ def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
     <td>{tabular_data["Thermal","out","max"]}</td>
   </tr>
 </tbody></table>"""
-
     return(fig.to_html(full_html=False,include_plotlyjs=include_plotlyjs_bool)+"\n"+table)
 
 def import_print_button():
@@ -768,10 +765,17 @@ class NewSchemaPackage(ArchiveSection):
 <html>
 <head>
 <style>
-  table, th, td {{
-    border: 1px solid black;
+  table {{
     border-collapse: collapse;
-    padding: 5px;
+    margin: auto;
+    text-align: center;
+  }}
+  th, td {{
+    border: 1px solid black;
+    padding: 6px 12px;
+  }}
+  thead th {{
+    background-color: #f2f2f2;
   }}
 </style>
 <style>
