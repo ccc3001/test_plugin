@@ -23,25 +23,28 @@ m_package = SchemaPackage()
 
 
 def import_plot(x_data,y_data,x_label,y_label):
-  df=pd.DataFrame(dict(
-    x=x_data,
-    y=y_data
-  ))
+  df = pd.DataFrame({
+        x_label: x_data,
+        y_label: y_data
+    })
   fig= px.line(df,x=x_label,y=y_label,title="test title")
-  return (fig.to_html(full_html=False,include_plotlyjs=False))
+  return (fig.to_html(full_html=False,include_plotlyjs=True))#wenn diese funktion nicht verwendet wird muss die plotly library andersow included werden
 
 # data is a list of touple [(data,name,label),(data,name)]
 def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
     tabular_data = {}
+    shown = {"in": False, "out": False}
     fig = go.Figure()
     for (dataitem,var_name,label) in data:
       if label == "in":
-        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "in",marker_color='darkblue'))
+        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "in",legendgroup=label,showlegend=not shown[label] , marker_color='darkblue'))
+        shown[label] = True
       elif label =="out":
-        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "out",marker_color='indianred'))
-      tabular_data[var_name,label,"max"]=(np.max(list(dataitem)),3)
-      tabular_data[var_name,label,"min"]=(np.min(list(dataitem)),3)
-      tabular_data[var_name,label,"avg"]=(np.avg(list(dataitem)),3)
+        fig.add_trace(go.Box( y=list(dataitem),x=[var_name for i in range(0,len(dataitem))] ,quartilemethod="linear", name= "out",legendgroup=label,showlegend=not shown[label],marker_color='indianred'))
+        shown[label] = True
+      tabular_data[var_name,label,"max"]=round(np.max(list(dataitem)),3)
+      tabular_data[var_name,label,"min"]=round(np.min(list(dataitem)),3)
+      tabular_data[var_name,label,"avg"]=round(np.average(list(dataitem)),3)
 
     fig.update_layout(
       yaxis=dict(
@@ -54,7 +57,6 @@ def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
           text=x_label
         )
       ),
-      color="Direction",
       boxmode='group'
     )
 
@@ -755,16 +757,23 @@ class NewSchemaPackage(ArchiveSection):
         #avg_plot_style,avg_plot_script = import_avg_plot_basics()#graphs.
         #plot_style,plot_canvas,plot_script = import_graph_lib(list(self.elapsed_time),list(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data))#graphs.
         # data is a list of touple [(data,name,label),(data,name)]
-        boxplot_temp_A=import_box_plot([(self.mio_data.Fluids_Anode_A_TT_02_Celsius.data,"Anode","in"),(self.mio_data.Fluids_Anode_A_TT_03_Celsius.data,"Anode","out"),(self.mio_data.Fluids_Cathode_A_TT_10_Celsius.data,"Cathode","in"),(self.mio_data.Fluids_Cathode_A_TT_11_Celsius.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_A_TT_03_Celsius.data,"Thermal","in"),(self.mio_data.Fluids_Thermal_A_TT_04_Celsius.data,"Thermal","out")]," ","Temp[C°]",True)
+        boxplot_temp_A=import_box_plot([(self.mio_data.Fluids_Anode_A_TT_02_Celsius.data,"Anode","in"),(self.mio_data.Fluids_Anode_A_TT_03_Celsius.data,"Anode","out"),(self.mio_data.Fluids_Cathode_A_TT_10_Celsius.data,"Cathode","in"),(self.mio_data.Fluids_Cathode_A_TT_11_Celsius.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_A_TT_03_Celsius.data,"Thermal","in"),(self.mio_data.Fluids_Thermal_A_TT_04_Celsius.data,"Thermal","out")]," ","Temp[C°]",False)
         boxplot_preassure_A=import_box_plot([(self.mio_data.Fluids_Anode_A_PT_03_barG.data,"Anode","in"),(self.mio_data.Fluids_Cathode_A_PT_05_barG.data,"Cathode","in"),(self.mio_data.Fluids_Thermal_PT_03_A_barG.data,"Thermal","in"),(self.mio_data.Fluids_Anode_A_PT_04_barG.data,"Anode","out"),(self.mio_data.Fluids_Cathode_A_PT_06_barG.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_PT_04_A_barG.data,"Thermal","out")]," ","Pressure[barg]",False)
-        boxplot_temp_B=import_box_plot([(self.mio_data.Fluids_Anode_B_TT_02_Celsius.data,"Anode","in"),(self.mio_data.Fluids_Anode_B_TT_03_Celsius.data,"Anode","out"),(self.mio_data.Fluids_Cathode_B_TT_10_Celsius.data,"Cathode","in"),(self.mio_data.Fluids_Cathode_B_TT_11_Celsius.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data,"Thermal","in"),(self.mio_data.Fluids_Thermal_B_TT_04_Celsius.data,"Thermal","out")]," ","Temp[C°]",True)
+        boxplot_temp_B=import_box_plot([(self.mio_data.Fluids_Anode_B_TT_02_Celsius.data,"Anode","in"),(self.mio_data.Fluids_Anode_B_TT_03_Celsius.data,"Anode","out"),(self.mio_data.Fluids_Cathode_B_TT_10_Celsius.data,"Cathode","in"),(self.mio_data.Fluids_Cathode_B_TT_11_Celsius.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data,"Thermal","in"),(self.mio_data.Fluids_Thermal_B_TT_04_Celsius.data,"Thermal","out")]," ","Temp[C°]",False)
         boxplot_preassure_B=import_box_plot([(self.mio_data.Fluids_Anode_B_PT_03_barG.data,"Anode","in"),(self.mio_data.Fluids_Cathode_B_PT_05_barG.data,"Cathode","in"),(self.mio_data.Fluids_Thermal_PT_03_B_barG.data,"Thermal","in"),(self.mio_data.Fluids_Anode_B_PT_04_barG.data,"Anode","out"),(self.mio_data.Fluids_Cathode_B_PT_06_barG.data,"Cathode","out"),(self.mio_data.Fluids_Thermal_PT_04_B_barG.data,"Thermal","out")]," ","Pressure[barg]",False)
-        import_plot(self.elapsed_time, self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data, "elapsed time","Temp[°C]")
+        plot=import_plot(self.elapsed_time, self.mio_data.Fluids_Thermal_B_TT_03_Celsius.data, "elapsed time","Temp[°C]")
         print_style,print_button, print_script = import_print_button()#graphs.
         return f"""
 <!DOCTYPE html>
 <html>
 <head>
+<style>
+  table, th, td {{
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding: 5px;
+  }}
+</style>
 <style>
 {print_style}
 #outline {{
@@ -814,20 +823,20 @@ class NewSchemaPackage(ArchiveSection):
 
 
 <h2>Protocol description </h2>
-<p id="outline"><br>{self.protocol_description}<br><br><p><br>
+<p id="outline"><br>{self.protocol_description}<br><br></p><br>
 <h2>Measurement description </h2>
-<p id="outline"><br>{self.measurement_description}<br><br><p><br>
+<p id="outline"><br>{self.measurement_description}<br><br></p><br>
 <p id="outline"><br>min: {minimum} max: {maximum} <br>mean: {mean} average: {average} <br><br></p>
 <h2>Measurement Comments</h2>
-{plot_canvas}
-<p id="outline"><br>{self.measurement_comments}<br><br><p>
+<p>{plot}<p/>
+<p id="outline"><br>{self.measurement_comments}<br><br></p>
 
 <h2>Stack A</h2>
-<p id="outline">{boxplot_temp_A}<br>{boxplot_preassure_A}<p>
+<p id="outline">{boxplot_temp_A}<br>{boxplot_preassure_A}</p>
 
 
 <h2>Stack B</h2>
-<p id="outline">{boxplot_temp_B}<br>{boxplot_preassure_B}<p>
+<p id="outline">{boxplot_temp_B}<br>{boxplot_preassure_B}</p>
 
 
 
