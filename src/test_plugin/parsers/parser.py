@@ -1,4 +1,5 @@
 import h5py
+from datetime import datetime 
 from typing import (
     TYPE_CHECKING,
 )
@@ -12,7 +13,7 @@ from structlog.stdlib import (
 from nomad.config import config
 from nomad.datamodel.metainfo.workflow import Workflow
 from nomad.parsing.parser import MatchingParser
-from test_plugin.schema_packages.schema_package import NewSchemaPackage,MIOData,ACTIF2Data,ACTIFData,HP_CANData,test_Section,Ploted_values
+from test_plugin.schema_packages.schema_package import NewSchemaPackage,MIOData,ACTIF2Data,ACTIFData,HP_CANData,Ploted_values
 
 configuration = config.get_plugin_entry_point(
     'test_plugin.parsers:parser_entry_point'
@@ -23,13 +24,13 @@ class NewParser(MatchingParser):
     def set_atribute(self,value,_object,_atribute,keys):
         for key in keys[:-1]:
             value=value[key]
-            
+
         if keys[-1] in list(value.keys()):
             value=value[keys[-1]][()]
             if isinstance(value, bytes):
                 setattr(_object,_atribute,value.decode('utf-8'))
             else:
-                setattr(_object,_atribute,value)    
+                setattr(_object,_atribute,value)
         else:
             setattr(_object,_atribute,None)
     def parse(
@@ -46,38 +47,32 @@ class NewParser(MatchingParser):
         actif_data= schema.m_create(ACTIFData)#ACTIFData()
         hp_can_data= schema.m_create(HP_CANData)#HP_CANData()
         schema.file_name = str(os.path.splitext(os.path.basename(str(mainfile)))[0])
-        
-        #for instrument in f["CAMELS_entry"]["user"]:
-        #    instrument_names= instrument_names
+        schema.date = str(datetime.today().strftime('%Y-%m-%d'))
         with h5py.File(mainfile, "r") as f:
-            #self.set_atribute(f,test_section,"substrate_temperature",["CAMELS_entry","data","ElapsedTime"])
-            #self.set_atribute(f,test_section,"chamber_pressure",["CAMELS_entry","data","ElapsedTime"])
-            #self.set_atribute(f,test_section,"time",["CAMELS_entry","data","ElapsedTime"])
-
             if "measurement_comments" in f["CAMELS_entry"]["measurement_details"]:
                 if str(f["CAMELS_entry"]["measurement_details"]["measurement_comments"][()]) != "b''":
-                    self.set_atribute(f,schema, "measurement_comments" , ["CAMELS_entry" "measurement_details" "measurement_comments"]) 
-            if "measurement_description" in f["CAMELS_entry"]["measurement_details"]: 
+                    self.set_atribute(f,schema, "measurement_comments" , ["CAMELS_entry" "measurement_details" "measurement_comments"])
+            if "measurement_description" in f["CAMELS_entry"]["measurement_details"]:
                 if str(f["CAMELS_entry"]["measurement_details"]["measurement_description"][()]) != "b''":
                     self.set_atribute(f,schema,"measurement_description",["CAMELS_entry","measurement_details","measurement_description"])
-            if "protocol_description" in f["CAMELS_entry"]["measurement_details"]:             
+            if "protocol_description" in f["CAMELS_entry"]["measurement_details"]:
                 if str(f["CAMELS_entry"]["measurement_details"]["protocol_description"][()]) != "b''":
                     self.set_atribute(f,schema,"protocol_description",["CAMELS_entry","measurement_details","protocol_description"])
-            if "first_name" in f["CAMELS_entry"]["user"]:             
+            if "first_name" in f["CAMELS_entry"]["user"]:
                 if str(f["CAMELS_entry"]["user"]["first_name"][()]) != "b''":
                     self.set_atribute(f,schema,"first_name",["CAMELS_entry","user","first_name"])
-            if "last_name" in f["CAMELS_entry"]["user"]:             
+            if "last_name" in f["CAMELS_entry"]["user"]:
                 if str(f["CAMELS_entry"]["user"]["last_name"][()]) != "b''":
                     self.set_atribute(f,schema,"last_name",["CAMELS_entry","user","last_name"])
-            if "email" in f["CAMELS_entry"]["user"]:             
+            if "email" in f["CAMELS_entry"]["user"]:
                 if str(f["CAMELS_entry"]["user"]["email"][()]) != "b''":
                     self.set_atribute(f,schema,"email",["CAMELS_entry","user","email"])
-            if "affiliation" in f["CAMELS_entry"]["user"]:             
+            if "affiliation" in f["CAMELS_entry"]["user"]:
                 if str(f["CAMELS_entry"]["user"]["affiliation"][()]) != "b''":
                     self.set_atribute(f,schema,"affiliation",["CAMELS_entry","user","affiliation"])
             self.set_atribute(f,schema,"time",["CAMELS_entry","data","time"])
             self.set_atribute(f,actif_data,"time",["CAMELS_entry","data","time"])
-            
+
             self.set_atribute(f,schema,"elapsed_time",["CAMELS_entry","data","ElapsedTime"])
             for key in f["CAMELS_entry"]["instruments"]:
                 if "opc" and "ua" in key:
@@ -768,7 +763,7 @@ class NewParser(MatchingParser):
                     if key+"_ACTIF2_RH_01_B_cmd" in  f["CAMELS_entry"]["data"]:
                         RH_01_B_cmd=actif2_data.m_create(Ploted_values,ACTIF2Data.RH_01_B_cmd)
                         self.set_atribute(f,RH_01_B_cmd,"data",["CAMELS_entry","data",key+"_ACTIF2_RH_01_B_cmd"])
-    
+
                 #schema.mio_data.append(mio_data)
                 #schema.data.actif_data.append(actif_data)
                 #schema.data.actif2_data.append(actif2_data)
