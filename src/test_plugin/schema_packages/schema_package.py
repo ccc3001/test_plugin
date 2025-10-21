@@ -106,7 +106,7 @@ def import_box_plot(data,x_label,y_label,include_plotlyjs_bool):
       <td class="active-cell">{tabular_data["Cathode","in","max"]}</td>
       <td class="active-cell">{tabular_data["Cathode","out","max"]}</td>
       <td class="active-cell">{tabular_data["Thermal","in","max"]}</td>
-      <td class="active-cell>{tabular_data["Thermal","out","max"]}</td>
+      <td class="active-cell">{tabular_data["Thermal","out","max"]}</td>
     </tr>
 </tbody></table></div>"""
     return("""<div style="margin-left: 7.5%; width: 80%;">""" + fig.to_html(full_html=False,include_plotlyjs=include_plotlyjs_bool)+"</div>"+"\n"+table)
