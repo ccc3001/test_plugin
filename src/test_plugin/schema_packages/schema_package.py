@@ -217,12 +217,12 @@ class Ploted_values(PlotSection,ArchiveSection):
         #self.append(self.generate_scan_plot())
       figure1= px.line(x=self.m_parent.m_parent.elapsed_time, y=self.data, title="")
       self.figures.append(PlotlyFigure(label='figure', figure=figure1.to_plotly_json()))
-      try:
-        figure2 = go.Figure()
-        figure2.add_trace(go.Box( y=self.data, quartilemethod="linear", name=  "" ))
-        self.figures.append(PlotlyFigure(label="figure2",figure = figure2.to_plotly_json()))
-      except NameError:
-          print("variable namme wasnt defined")
+      #try:
+      #  figure2 = go.Figure()
+      #  figure2.add_trace(go.Box( y=self.data, quartilemethod="linear", name=  "" ))
+      #  self.figures.append(PlotlyFigure(label="figure2",figure = figure2.to_plotly_json()))
+      #except NameError:
+      #    print("variable namme wasnt defined")
       """
       m_def=Section(
         a_plot={

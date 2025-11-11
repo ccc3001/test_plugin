@@ -55,7 +55,7 @@ class NewParser(MatchingParser):
                 CAMELS_entry=list(f.keys())[0]
             if "measurement_comments" in f[CAMELS_entry]["measurement_details"]:
                 if str(f[CAMELS_entry]["measurement_details"]["measurement_comments"][()]) != "b''":
-                    self.set_atribute(f,schema, "measurement_comments" , [CAMELS_entry "measurement_details" "measurement_comments"])
+                    self.set_atribute(f,schema, "measurement_comments" , [CAMELS_entry, "measurement_details", "measurement_comments"])
             if "measurement_description" in f[CAMELS_entry]["measurement_details"]:
                 if str(f[CAMELS_entry]["measurement_details"]["measurement_description"][()]) != "b''":
                     self.set_atribute(f,schema,"measurement_description",[CAMELS_entry,"measurement_details","measurement_description"])
